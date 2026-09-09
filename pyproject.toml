@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fb-news-autopilot"
+version = "0.1.0"
+description = "Package 01: auditable news discovery and source verification"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.23,<5", "beautifulsoup4>=4.12,<5"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+fb-news-autopilot = "fb_news_autopilot.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/fb-news-autopilot/schemas" = ["schemas/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

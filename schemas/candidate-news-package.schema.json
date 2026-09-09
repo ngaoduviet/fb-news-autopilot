@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fb-news-autopilot:candidate-news-package:1.0.0",
+  "type": "object",
+  "properties": {
+    "news_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "story_cluster_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "discovery": {
+      "type": "object",
+      "properties": {
+        "query_or_feed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "discovered_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "discovered_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+        },
+        "publisher_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headline_observed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_time_observed": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "query_or_feed",
+        "discovered_at",
+        "discovered_url",
+        "publisher_name",
+        "headline_observed",
+        "publication_time_observed"
+      ],
+      "additionalProperties": false
+    },
+    "normalized": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "topic": {
+          "enum": [
+            "money_policy",
+            "breaking_social",
+            "life_alert",
+            "tech_trend",
+            "global",
+            "sport",
+            "entertainment",
+            "other"
+          ]
+        },
+        "summary_facts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "main_entities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "title",
+        "topic",
+        "summary_facts",
+        "main_entities",
+        "location"
+      ],
+      "additionalProperties": false
+    },
+    "scores": {
+      "type": "object",
+      "properties": {
+        "viral_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "direct_life_impact": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "money_benefit_value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "emotional_pull": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "debate_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "freshness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "hot_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "audience_quality_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "money_value_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "production_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "top_content_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "viral_potential",
+        "direct_life_impact",
+        "money_benefit_value",
+        "emotional_pull",
+        "debate_potential",
+        "freshness_score",
+        "hot_score",
+        "audience_quality_score",
+        "money_value_score",
+        "production_score",
+        "top_content_score"
+      ],
+      "additionalProperties": false
+    },
+    "preliminary_freshness": {
+      "type": "object",
+      "properties": {
+        "bucket": {
+          "enum": [
+            "LIVE",
+            "HOT",
+            "OLD",
+            "UNKNOWN"
+          ]
+        },
+        "age_hours": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "new_development_claimed": {
+          "type": "boolean"
+        },
+        "requires_m02_freshness_verification": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "bucket",
+        "age_hours",
+        "new_development_claimed",
+        "requires_m02_freshness_verification"
+      ],
+      "additionalProperties": false
+    },
+    "m01_status": {
+      "enum": [
+        "DISCOVERED",
+        "SHORTLISTED",
+        "REJECTED_PRELIMINARY"
+      ]
+    }
+  },
+  "required": [
+    "news_id",
+    "story_cluster_id",
+    "discovery",
+    "normalized",
+    "scores",
+    "preliminary_freshness",
+    "m01_status"
+  ],
+  "additionalProperties": false
+}

@@ -62,6 +62,12 @@ Classify the resolved page as:
 
 Only `ARTICLE` may become the final verified source page.
 
+Configured category paths and explicit homepage/search/tag/topic/aggregator signals
+take precedence over weak markup. A generic `<article>` listing-card element alone
+does not prove a direct article. Require structured Article/NewsArticle data,
+`og:type=article`, an explicit publisher article selector/path rule, or another
+independently justified article-specific signal.
+
 Reject invalid final page classes with the matching rejection code.
 
 ### Step 4 — Verify publisher/source identity
@@ -113,27 +119,24 @@ REVIEW_EVENT_TIME_UNCLEAR
 
 ### Step 7 — Apply freshness gate
 
-#### LIVE
+Use `effective_freshness_time` in this precedence order:
+1. verified material development time;
+2. verified substantive article update time;
+3. original publication time.
 
-If publication/development is within the default 2-hour LIVE WINDOW and no contrary evidence exists, continue.
+The exact article must contain and substantiate the material development/update.
+Preserve original publication, visible update, and material development timestamps.
+Cosmetic updates, rewrites, republication and virality cannot refresh an article.
+An original article older than 24 hours can pass only when it itself supports a
+verified substantive development/update inside the allowed window; another
+source's new development must enter as a separate candidate.
 
-#### HOT
-
-If older than 2 hours but within 24 hours, verify a materially new development today.
-
-Store the evidence basis in `freshness_basis`.
-
-If no genuine new development exists:
-
-```text
-REJECT_NO_NEW_DEVELOPMENT
-```
-
-If outside the permitted window:
-
-```text
-REJECT_OLD_NEWS
-```
+LIVE: age 0–2 hours by default. HOT: age >2 and ≤24 hours by default,
+with a verified material development today in the run timezone.
+HOT without new development: `REJECT_NO_NEW_DEVELOPMENT`.
+Outside the permitted window: `REJECT_OLD_NEWS`.
+Unclear development evidence: `REVIEW_NEW_DEVELOPMENT_UNCLEAR`.
+Store effective timestamp, age, bucket, and factual evidence basis.
 
 ### Step 8 — Verify headline support
 
@@ -182,6 +185,16 @@ REJECT_DUPLICATE_STORY
 
 Do not reject a genuinely new development in an ongoing story merely because the broader topic appeared earlier.
 
+Retain normalized URL, verified event key, and effective freshness time in duplicate
+history. Apply these rules:
+
+- same non-null verified event key: `REJECT_DUPLICATE_STORY` across any URLs;
+- same URL plus the same non-null verified event key: `REJECT_DUPLICATE_STORY`;
+- same URL plus different non-null verified event keys: allow as a new phase;
+- same URL with unresolved event identity: `REVIEW_DUPLICATE_UNCERTAIN`.
+
+URL equality is not the entire duplicate truth.
+
 ### Step 11 — Make decision
 
 #### VERIFIED
@@ -190,7 +203,7 @@ Use only when:
 
 - exact article URL verified;
 - source/publisher sufficiently verified;
-- publication freshness verified;
+- publication time established and effective freshness verified;
 - event/new-development timing sufficiently verified where material;
 - headline supported;
 - core facts supported;
@@ -228,7 +241,12 @@ A source must expose enough article content/metadata to verify the factual claim
 
 If the URL exists but only an inaccessible shell/paywall/blocked page prevents meaningful verification, do not claim verification from the URL alone.
 
-Return `REVIEW` or `REJECTED` according to whether independent reliable verification can satisfy the same origin claim.
+If reliable independent direct sources corroborate both exact article identity
+and the same substantive claim, return REVIEW with
+`REVIEW_ARTICLE_ACCESS_LIMITED_CORROBORATED`, retaining their URLs.
+Otherwise return REJECTED with `REJECT_ARTICLE_INACCESSIBLE` (and
+`REJECT_SOURCE_UNVERIFIABLE` when applicable). Never VERIFIED from a snippet,
+URL existence or aggregator excerpt. An accessible alternative is a separate candidate.
 
 ## 6. Freshness Examples
 
@@ -281,25 +299,18 @@ REJECT_NO_NEW_DEVELOPMENT
 
 ## 7. Required Output
 
-On VERIFIED, return `VERIFIED_NEWS_PACKAGE` conforming to `DATA-CONTRACT.md`.
+All terminal statuses return the unified `PACKAGE_01_RESULT` specified in
+DATA-CONTRACT.md §11. Preserve candidate text, scores and discovery evidence
+separately from verified fields; unsupported/unverified text is never labeled verified.
+All top-level fields exist for VERIFIED, REVIEW and REJECTED.
+Use null for unknown values and tri-state support/accessibility values.
+Only VERIFIED permits editorial handoff. All terminal states mark Package 01 complete.
+A hard rejection takes precedence over reviews and has empty review_codes.
 
-On REVIEW/REJECTED, return the same traceable identification fields plus:
-
-```json
-{
-  "verification": {
-    "status": "REJECTED",
-    "resolved_article_url": null,
-    "rejection_codes": ["REJECT_OLD_NEWS"],
-    "review_codes": [],
-    "evidence_summary": "..."
-  },
-  "handoff": {
-    "eligible_for_editorial_module": false,
-    "package_01_complete": true
-  }
-}
-```
+For ambiguous headline support use `REVIEW_HEADLINE_SUPPORT_UNCLEAR` with
+`headline_supported=null`; for ambiguous fact support use
+`REVIEW_FACT_SUPPORT_UNCLEAR` with `facts_supported=null`.
+Clear material headline/fact failures retain their existing rejection codes.
 
 ## 8. Hard Prohibitions
 

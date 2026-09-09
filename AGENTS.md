@@ -49,14 +49,14 @@ A lower-priority instruction must not weaken a higher-priority hard rejection ru
 
 1. **Freshness is a hard gate.** The radar is for current news, not archival discovery.
 2. **Default LIVE WINDOW = 2 hours** from the run time.
-3. A story older than the LIVE WINDOW may enter the **HOT WINDOW (12–24 hours)** only when there is a verifiable new development occurring today.
+3. A story older than the LIVE WINDOW may enter the **HOT WINDOW (>2 hours and ≤24 hours by default)** only when there is a verifiable new development occurring today.
 4. Old articles must never be presented as breaking/current news merely because they are viral or important.
 5. Every candidate must have an **exact, direct article URL** before it can pass M02.
 6. Homepage, category, tag, search, topic hub, redirect-only, and aggregation URLs are not valid source article URLs.
 7. The displayed headline must be materially supported by the source article.
 8. The system must distinguish **article publication time** from **event time**.
 9. Never invent a publication date, event date, author, source, quote, statistic, or URL.
-10. Duplicate or materially identical stories must not be treated as independent candidates merely because multiple publishers covered them.
+10. Duplicate or materially identical stories must not be treated as independent candidates merely because multiple publishers covered them. A reused URL does not by itself make a verified new material development a duplicate.
 11. Every run must produce an audit trail, including rejected candidates and rejection reasons.
 12. Every selected story must retain source provenance through all later modules.
 13. Package 01 must not perform Facebook publishing actions.
@@ -125,6 +125,8 @@ Scoring never overrides hard verification failures.
 ### M01 may not
 
 - declare an unverified URL valid;
+- treat a missing discovery-time new-development hint as proof that no new development exists;
+- reject different URLs as duplicates from headline equality alone;
 - write final Facebook copy;
 - generate images;
 - publish content.

@@ -37,7 +37,7 @@ Prioritize stories first published or materially updated in this window.
 
 ### HOT WINDOW
 
-Stories outside the LIVE WINDOW but within 12–24 hours may be considered only when there is a **verified new development today**.
+Stories aged >2 hours and ≤24 hours by default may be considered only when there is a **verified new development today**.
 
 Examples of acceptable new development:
 
@@ -139,9 +139,13 @@ Do not invent missing metadata.
 
 ### Step 4 — Preliminary stale-content rejection
 
-Reject obvious archival/old items before scoring.
+Preserve HOT, OLD, and unknown-time observations for M02 unless separate affirmative
+evidence establishes that an item is archival/stale. A missing or false
+`new_development_claimed` discovery hint is not proof of no development.
 
-A story from a prior date may remain a candidate only when a genuine new development today is evident and must be verified by M02.
+Set `preliminary_freshness.requires_m02_freshness_verification=true` for HOT,
+OLD, and unknown observations. Only M02 may decide whether exact-article evidence
+proves a current material development, proves no development, or remains unclear.
 
 ### Step 5 — Cluster duplicate coverage
 
@@ -150,6 +154,10 @@ Group reports about the same underlying event/development.
 Do not fill the shortlist with five publishers reporting the same story.
 
 Assign a common `story_cluster_id`.
+
+Deterministic M01 duplicate rejection requires the same normalized article URL or
+the same explicit reliable `event_key`. Equal or similar headlines on different URLs
+are insufficient and both candidates must remain eligible for M02.
 
 ### Step 6 — Score each candidate
 
@@ -283,11 +291,26 @@ Before returning M01 output, confirm:
 
 - [ ] run time/timezone established;
 - [ ] LIVE WINDOW applied;
-- [ ] obvious old news removed;
-- [ ] HOT WINDOW candidates contain a claimed new development to verify;
+- [ ] only affirmatively established archival/stale items are removed early;
+- [ ] HOT/OLD/unknown observations needing exact-article freshness checks are preserved and marked;
 - [ ] duplicate clusters created;
 - [ ] no fabricated metadata;
 - [ ] score formulas calculated correctly;
 - [ ] Money & Policy/direct-impact preference reflected without forcing quotas;
 - [ ] every shortlisted candidate is ready for independent M02 verification;
 - [ ] no final verified-link claim has been made by M01.
+
+
+## 11. Approved freshness clarification
+
+M01 uses observed times only for preliminary ranking. Preserve the original
+publication observation. A claimed substantive update/development may keep an
+older article eligible for M02 inspection, but M01 cannot certify it.
+M02 alone computes verified effective freshness, prioritizing material development,
+then substantive update, then original publication time. Cosmetic updates,
+recirculation, and rewriting never reset freshness. HOT requires new development
+today and means >2 hours and ≤24 hours with the default runtime windows.
+
+M01 must not interpret an absent/false discovery hint as verified absence. It marks
+HOT, OLD, and unknown observations for M02 freshness verification. Headline equality
+alone never causes preliminary duplicate rejection.

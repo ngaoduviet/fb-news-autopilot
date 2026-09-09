@@ -60,6 +60,12 @@ The trigger must not contain the substantive News Radar rules.
 ### M01 News Radar
 
 M01 optimizes **recall + ranking**. It should find potentially useful current stories but does not have authority to finalize source validity.
+For observed HOT or OLD publication times, absence of a discovery-time development
+hint is not evidence that no current development exists. M01 marks the candidate as
+requiring M02 freshness verification and preserves it for the shortlist, subject to
+the normal limit and scoring. M01 may deterministically collapse only identical
+normalized URLs or identical explicit reliable event keys; headline equality alone
+is only a hint and cannot cause rejection.
 
 ### M02 Source Verifier
 
@@ -67,42 +73,23 @@ M02 optimizes **precision + provenance**. It is an independent gate. A high M01 
 
 ## 4. Freshness Model
 
-### 4.1 LIVE WINDOW
+Retain original `publication_time`, nullable `last_updated_time`, and nullable
+`material_development_time` separately. Compute `effective_freshness_time` from:
 
-Default:
+1. verified material development time supported by the exact source article;
+2. verified substantive update time supported by that article;
+3. original publication time.
 
-```text
-0–2 hours before run_at
-```
+With the default windows, LIVE means age 0–2 hours; HOT means age >2 and
+≤24 hours; OLD means age >24 hours. HOT still requires a verified material
+new development today, in the run's business timezone.
 
-Candidates in this window are eligible for normal current-news consideration, subject to all other checks.
-
-### 4.2 HOT WINDOW
-
-Default:
-
-```text
->2 hours and ≤24 hours before run_at
-```
-
-A HOT WINDOW story may pass only if at least one of the following is verified:
-
-- a materially new development occurred today;
-- an official decision/update was issued today;
-- new verified figures or consequences were published today;
-- the current article itself reports a new phase of an ongoing event.
-
-The system must record the new development in `freshness_basis`.
-
-### 4.3 ARCHIVAL / OLD
-
-Older than the allowed HOT WINDOW, or old event recirculated without new development:
-
-```text
-REJECT_OLD_NEWS
-```
-
-Importance, virality, or social interest does not override this rule.
+An article published more than 24 hours ago can qualify only if the exact article
+contains and substantiates a new material development or substantive update
+inside the permitted window. Evidence in another article cannot refresh this
+article: discover and verify that other source separately. Cosmetic updates,
+rewrites, republication, and social recirculation never reset freshness.
+Record the selected timestamp and evidence in `freshness`.
 
 ## 5. URL Validation Model
 
@@ -150,15 +137,23 @@ Duplicate detection should operate at two levels:
 
 ### A. URL duplicate
 
-Same canonical/resolved URL.
+Compare a normalized canonical/resolved URL together with the verified development
+identity. The same URL and same non-null verified event key is a duplicate. The same
+URL and a different non-null verified event key is a new phase, not a duplicate.
+If the URL is reused but event identity is unresolved, return
+`REVIEW_DUPLICATE_UNCERTAIN`.
 
 ### B. Semantic event duplicate
 
 Different publishers or URLs covering materially the same event/development.
+The same non-null verified event key is a duplicate across URLs.
 
 The system should select a representative source but preserve corroborating URLs where useful.
 
 A later production system should also compare against previously published story fingerprints before Facebook publishing.
+
+Duplicate history records retain at least normalized URL, verified event key, and
+effective freshness time. A single URL set is not sufficient duplicate evidence.
 
 ## 8. Scoring Architecture
 

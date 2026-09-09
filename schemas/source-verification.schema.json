@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fb-news-autopilot:source-verification:1.0.0",
+  "type": "object",
+  "properties": {
+    "verification": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "VERIFIED",
+            "REVIEW",
+            "REJECTED"
+          ]
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "page_type": {
+          "enum": [
+            "ARTICLE",
+            "HOMEPAGE",
+            "CATEGORY",
+            "TAG_TOPIC",
+            "SEARCH_RESULTS",
+            "AGGREGATOR",
+            "REDIRECT_ONLY",
+            "INACCESSIBLE",
+            "UNKNOWN"
+          ]
+        },
+        "article_accessible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headline_supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "facts_supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_quality": {
+          "enum": [
+            "PRIMARY_OFFICIAL",
+            "DIRECT_REPUTABLE_ARTICLE",
+            "SECONDARY_REPUTABLE_ARTICLE",
+            "AGGREGATOR_ONLY",
+            "UNKNOWN"
+          ]
+        },
+        "rejection_codes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "REJECT_OLD_NEWS",
+              "REJECT_NO_NEW_DEVELOPMENT",
+              "REJECT_NOT_DIRECT_ARTICLE",
+              "REJECT_HOMEPAGE_URL",
+              "REJECT_CATEGORY_URL",
+              "REJECT_SEARCH_URL",
+              "REJECT_TAG_TOPIC_URL",
+              "REJECT_AGGREGATOR_AS_FINAL_SOURCE",
+              "REJECT_REDIRECT_TO_NON_ARTICLE",
+              "REJECT_ARTICLE_INACCESSIBLE",
+              "REJECT_SOURCE_UNVERIFIABLE",
+              "REJECT_HEADLINE_UNSUPPORTED",
+              "REJECT_FACTS_UNSUPPORTED",
+              "REJECT_DUPLICATE_STORY",
+              "REJECT_INVALID_URL"
+            ]
+          }
+        },
+        "review_codes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "REVIEW_PUBLICATION_TIME_UNCLEAR",
+              "REVIEW_EVENT_TIME_UNCLEAR",
+              "REVIEW_SOURCE_IDENTITY_UNCLEAR",
+              "REVIEW_NEW_DEVELOPMENT_UNCLEAR",
+              "REVIEW_CONFLICTING_SOURCES",
+              "REVIEW_DUPLICATE_UNCERTAIN",
+              "REVIEW_ARTICLE_ACCESS_LIMITED_CORROBORATED",
+              "REVIEW_HEADLINE_SUPPORT_UNCLEAR",
+              "REVIEW_FACT_SUPPORT_UNCLEAR"
+            ]
+          }
+        },
+        "evidence_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "status",
+        "verified_at",
+        "page_type",
+        "article_accessible",
+        "headline_supported",
+        "facts_supported",
+        "origin_quality",
+        "rejection_codes",
+        "review_codes",
+        "evidence_summary"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "VERIFIED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "maxItems": 0
+              },
+              "page_type": {
+                "const": "ARTICLE"
+              },
+              "article_accessible": {
+                "const": true
+              },
+              "headline_supported": {
+                "const": true
+              },
+              "facts_supported": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "REVIEW"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "REJECTED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "minItems": 1
+              },
+              "review_codes": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "verification"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,774 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fb-news-autopilot:verified-news-package:1.0.0",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_context": {
+      "type": "object",
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "live_window_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "hot_window_hours": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "brand_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "shadow",
+            "approval",
+            "production"
+          ]
+        }
+      },
+      "required": [
+        "run_id",
+        "run_at",
+        "timezone",
+        "live_window_hours",
+        "hot_window_hours",
+        "brand_profile",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "news_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "story_cluster_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "publisher_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "discovered_url": {
+          "type": "string"
+        },
+        "resolved_article_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "canonical_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "publication_time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_updated_time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "material_development_time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "corroborating_urls": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+          }
+        }
+      },
+      "required": [
+        "publisher_name",
+        "discovered_url",
+        "resolved_article_url",
+        "canonical_url",
+        "publication_time",
+        "last_updated_time",
+        "event_time",
+        "material_development_time",
+        "corroborating_urls"
+      ],
+      "additionalProperties": false
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "candidate_title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_summary_facts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "main_entities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "topic": {
+          "enum": [
+            "money_policy",
+            "breaking_social",
+            "life_alert",
+            "tech_trend",
+            "global",
+            "sport",
+            "entertainment",
+            "other"
+          ]
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verified_title": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verified_summary_facts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "candidate_title",
+        "candidate_summary_facts",
+        "main_entities",
+        "topic",
+        "location",
+        "verified_title",
+        "verified_summary_facts"
+      ],
+      "additionalProperties": false
+    },
+    "freshness": {
+      "type": "object",
+      "properties": {
+        "bucket": {
+          "enum": [
+            "LIVE",
+            "HOT",
+            "OLD",
+            "UNKNOWN"
+          ]
+        },
+        "age_hours": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effective_freshness_time": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "bucket",
+        "age_hours",
+        "effective_freshness_time",
+        "basis"
+      ],
+      "additionalProperties": false
+    },
+    "scores": {
+      "type": "object",
+      "properties": {
+        "viral_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "direct_life_impact": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "money_benefit_value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "emotional_pull": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "debate_potential": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "freshness_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "hot_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "audience_quality_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "money_value_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "production_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "top_content_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "viral_potential",
+        "direct_life_impact",
+        "money_benefit_value",
+        "emotional_pull",
+        "debate_potential",
+        "freshness_score",
+        "hot_score",
+        "audience_quality_score",
+        "money_value_score",
+        "production_score",
+        "top_content_score"
+      ],
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "VERIFIED"
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "page_type": {
+          "enum": [
+            "ARTICLE",
+            "HOMEPAGE",
+            "CATEGORY",
+            "TAG_TOPIC",
+            "SEARCH_RESULTS",
+            "AGGREGATOR",
+            "REDIRECT_ONLY",
+            "INACCESSIBLE",
+            "UNKNOWN"
+          ]
+        },
+        "article_accessible": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headline_supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "facts_supported": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_quality": {
+          "enum": [
+            "PRIMARY_OFFICIAL",
+            "DIRECT_REPUTABLE_ARTICLE",
+            "SECONDARY_REPUTABLE_ARTICLE",
+            "AGGREGATOR_ONLY",
+            "UNKNOWN"
+          ]
+        },
+        "rejection_codes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "REJECT_OLD_NEWS",
+              "REJECT_NO_NEW_DEVELOPMENT",
+              "REJECT_NOT_DIRECT_ARTICLE",
+              "REJECT_HOMEPAGE_URL",
+              "REJECT_CATEGORY_URL",
+              "REJECT_SEARCH_URL",
+              "REJECT_TAG_TOPIC_URL",
+              "REJECT_AGGREGATOR_AS_FINAL_SOURCE",
+              "REJECT_REDIRECT_TO_NON_ARTICLE",
+              "REJECT_ARTICLE_INACCESSIBLE",
+              "REJECT_SOURCE_UNVERIFIABLE",
+              "REJECT_HEADLINE_UNSUPPORTED",
+              "REJECT_FACTS_UNSUPPORTED",
+              "REJECT_DUPLICATE_STORY",
+              "REJECT_INVALID_URL"
+            ]
+          }
+        },
+        "review_codes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "REVIEW_PUBLICATION_TIME_UNCLEAR",
+              "REVIEW_EVENT_TIME_UNCLEAR",
+              "REVIEW_SOURCE_IDENTITY_UNCLEAR",
+              "REVIEW_NEW_DEVELOPMENT_UNCLEAR",
+              "REVIEW_CONFLICTING_SOURCES",
+              "REVIEW_DUPLICATE_UNCERTAIN",
+              "REVIEW_ARTICLE_ACCESS_LIMITED_CORROBORATED",
+              "REVIEW_HEADLINE_SUPPORT_UNCLEAR",
+              "REVIEW_FACT_SUPPORT_UNCLEAR"
+            ]
+          }
+        },
+        "evidence_summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "status",
+        "verified_at",
+        "page_type",
+        "article_accessible",
+        "headline_supported",
+        "facts_supported",
+        "origin_quality",
+        "rejection_codes",
+        "review_codes",
+        "evidence_summary"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "VERIFIED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "maxItems": 0
+              },
+              "page_type": {
+                "const": "ARTICLE"
+              },
+              "article_accessible": {
+                "const": true
+              },
+              "headline_supported": {
+                "const": true
+              },
+              "facts_supported": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "REVIEW"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "REJECTED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rejection_codes": {
+                "minItems": 1
+              },
+              "review_codes": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "handoff": {
+      "type": "object",
+      "properties": {
+        "eligible_for_editorial_module": {
+          "type": "boolean"
+        },
+        "package_01_complete": {
+          "const": true
+        }
+      },
+      "required": [
+        "eligible_for_editorial_module",
+        "package_01_complete"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_context",
+    "news_id",
+    "story_cluster_id",
+    "source",
+    "content",
+    "freshness",
+    "scores",
+    "verification",
+    "handoff"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "status": {
+                "const": "VERIFIED"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "maxItems": 0
+              },
+              "page_type": {
+                "const": "ARTICLE"
+              },
+              "article_accessible": {
+                "const": true
+              },
+              "headline_supported": {
+                "const": true
+              },
+              "facts_supported": {
+                "const": true
+              },
+              "origin_quality": {
+                "enum": [
+                  "PRIMARY_OFFICIAL",
+                  "DIRECT_REPUTABLE_ARTICLE",
+                  "SECONDARY_REPUTABLE_ARTICLE"
+                ]
+              }
+            }
+          },
+          "handoff": {
+            "properties": {
+              "eligible_for_editorial_module": {
+                "const": true
+              }
+            }
+          },
+          "source": {
+            "properties": {
+              "resolved_article_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+              },
+              "publication_time": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+              }
+            }
+          },
+          "content": {
+            "properties": {
+              "verified_title": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "freshness": {
+            "properties": {
+              "bucket": {
+                "enum": [
+                  "LIVE",
+                  "HOT"
+                ]
+              },
+              "effective_freshness_time": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+              },
+              "age_hours": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "status": {
+                "const": "REVIEW"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "rejection_codes": {
+                "maxItems": 0
+              },
+              "review_codes": {
+                "minItems": 1
+              }
+            }
+          },
+          "handoff": {
+            "properties": {
+              "eligible_for_editorial_module": {
+                "const": false
+              }
+            }
+          },
+          "content": {
+            "properties": {
+              "verified_title": {
+                "type": "null"
+              },
+              "verified_summary_facts": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "status": {
+                "const": "REJECTED"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verification": {
+            "properties": {
+              "rejection_codes": {
+                "minItems": 1
+              },
+              "review_codes": {
+                "maxItems": 0
+              }
+            }
+          },
+          "handoff": {
+            "properties": {
+              "eligible_for_editorial_module": {
+                "const": false
+              }
+            }
+          },
+          "content": {
+            "properties": {
+              "verified_title": {
+                "type": "null"
+              },
+              "verified_summary_facts": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
