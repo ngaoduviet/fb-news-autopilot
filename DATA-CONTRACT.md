@@ -45,6 +45,13 @@ Package 01 itself never publishes regardless of mode.
 
 ## 4. CANDIDATE_NEWS_PACKAGE — M01 Output
 
+`news_id` is a run-scoped candidate identity. Package 01 constructs it deterministically
+as SHA-256 over `candidate-v2`, `run_id`, and a stable candidate key. The stable key is
+an explicit reliable event key when present, otherwise the normalized discovered URL.
+The same input in the same run has the same ID; the same URL in another run has a
+different ID. `story_cluster_id` groups matching URL/event observations across sources
+and is not a terminal duplicate decision.
+
 ```json
 {
   "news_id": "TN5S-20260909-001",
@@ -55,7 +62,17 @@ Package 01 itself never publishes regardless of mode.
     "discovered_url": "https://publisher.example/article",
     "publisher_name": "...",
     "headline_observed": "...",
-    "publication_time_observed": "2026-09-09T04:40:00+07:00"
+    "publication_time_observed": "2026-09-09T04:40:00+07:00",
+    "discovery_provider": "rss",
+    "search_evidence": "Short factual discovery evidence only.",
+    "citation_metadata": [
+      {
+        "reference_id": "source-1",
+        "url": "https://publisher.example/article",
+        "title": "...",
+        "kind": "url"
+      }
+    ]
   },
   "normalized": {
     "title": "...",
@@ -125,6 +142,18 @@ development exists, and cannot by itself cause M01 rejection.
 M01 duplicate rejection requires either an identical normalized article URL or an
 identical explicit reliable event key. Equal or similar headlines alone are never
 sufficient.
+
+`discovery_provider` records `manual`, `rss`, a configured feed adapter, or a deterministic merged
+provider label. Discovery evidence never establishes article accessibility,
+freshness, semantic support, `resolved_article_url`, or terminal status.
+
+### Fetched article evidence
+
+The immutable source-evidence audit records `requested_url`, `final_url`,
+`canonical_url`, `http_status`, `redirect_outcome`, `content_type`, `fetched_at`,
+`publisher_host`, extracted title/body, source publication/update times, and raw
+document where available. These fields describe the exact request; only M02 can map
+them to terminal source fields.
 
 ## 5. SOURCE_VERIFICATION — M02 Output Block
 
@@ -221,7 +250,7 @@ A candidate in `REVIEW` must not be automatically passed to a future auto-publis
 
 ## 8. PACKAGE_01_RESULT — Unified Terminal Object
 
-The example below illustrates VERIFIED. All terminal statuses use these same top-level fields, as defined in §11. VERIFIED_NEWS_PACKAGE is the VERIFIED-only subset.
+The example below illustrates VERIFIED. All terminal statuses use these same top-level fields in this section. VERIFIED_NEWS_PACKAGE is the VERIFIED-only subset.
 
 ```json
 {
@@ -653,6 +682,10 @@ Checked-in schemas use JSON Schema Draft 2020-12:
 - `verified-news-package.schema.json`: VERIFIED-only subset.
 - `radar-summary.schema.json`: M01 run summary.
 - `run-result.schema.json`: run outcome, candidates, terminal results and audit events.
+- `candidate-queue.schema.json`: deterministic RSS candidates plus exact evidence paths.
+- `semantic-decisions.schema.json`: strict Codex semantic handoff and status/handoff rules.
+- `editorial.schema.json`: strict Tin Nóng 5s editorial artifact.
+- `rendered-asset.schema.json`: immutable poster hash, dimensions, and confirmed rights.
 
 M01 inter-module candidate URLs obey the HTTPS convention. Raw invalid URL
 submissions are ingress errors, retained verbatim in the external raw-observation
@@ -694,3 +727,73 @@ unknown publication observations set
 `requires_m02_freshness_verification=true` and remain eligible for M02, subject to
 normal scoring and shortlist limits. Only M02 may issue the terminal freshness
 decision from exact-article evidence.
+
+## 14. Round 2 persistent history and failure contract
+
+SQLite persists `runs`, `candidates`, `verifications`, and `event_history`. Candidate
+and verification records are idempotent by `news_id`. Event history retains normalized
+URL, nullable verified event key, effective freshness time, and first/last run IDs.
+The same event key is duplicate across URLs; a reused URL with a different non-null
+verified event key is a new phase; uncertain identity on a reused URL is REVIEW.
+
+Unexpected failures are stored in `run_failures` with only `run_id`, stage, exception
+type, sanitized message and timestamp. Keys, authorization headers and environment
+dumps are forbidden. One candidate failure may produce `RUN_PARTIAL_FAILURE` while
+independent candidates complete.
+
+Semantic-provider uncertainty does not by itself imply development uncertainty. For an
+article whose verified publication time already places it in LIVE, a generic semantic
+failure produces the applicable headline/fact support review codes without
+`REVIEW_NEW_DEVELOPMENT_UNCLEAR`. That development review code applies when HOT/OLD
+qualification depends on an unestablished material development/substantive update, or
+when an explicit development/update claim exists but its support cannot be established.
+
+## 15. Candidate queue and Codex semantic handoff
+
+`candidate-queue.schema.json` defines `data/queue/<run_id>/candidates.json`. Every
+shortlisted entry retains its complete M01 candidate contract, source/canonical URL,
+exact article/evidence paths, extracted timestamps, deterministic checks, source image
+URL, and `image_rights_status`. The default rights value is `UNKNOWN`; retrieval never
+proves reuse rights. `needs_semantic_verification` is always true.
+
+`semantic-decisions.schema.json` defines the only Codex-to-Python M02 semantic handoff.
+It permits `VERIFIED`, `REVIEW`, and `REJECTED`, uses the rejection/review enums above,
+and requires explicit tri-state support fields, exact evidence quotes, confidence, and
+`handoff_allowed`. VERIFIED requires supported title/publication/facts, no unsupported
+claims or reasons, and `handoff_allowed=true`. REVIEW and REJECTED require their own
+reason family and `handoff_allowed=false`.
+
+Python accepts the file only when the run ID and candidate coverage are exact, the
+schema validates, VERIFIED does not override deterministic URL/article/time gates, every
+quote occurs in the immutable article text, and every evidence URL matches the candidate.
+Any failure produces a HOLD and no downstream eligibility.
+
+## 16. Editorial handoff
+
+`editorial.schema.json` defines `editorial/<news_id>.json`. It is valid only for a
+VERIFIED semantic decision with `handoff_allowed=true`. It contains two captions, the
+selected verbatim recommendation, exactly five unique hashtags, first comment and source
+provenance, a 7–15-word headline split into 3–4 exact lines, at most two yellow keywords,
+an audit-only image prompt, version/timestamp, and affirmative compliance fields.
+
+Python additionally enforces caption 25–65 words, first comment 80–150 words, source and
+news identity, line reconstruction, recommendation equality, and keyword containment.
+It validates structure and eligibility; it does not generate or semantically improve copy.
+
+## 17. Image and publication holds
+
+`image_rights_status` is one of `OWNED`, `LICENSED`, `PERMITTED`, or `UNKNOWN`. Only the
+first three may enter the deterministic renderer. UNKNOWN yields `HOLD_IMAGE_RIGHTS`.
+The poster contract is 1080×1350 PNG/JPEG with validated safe margins.
+
+Meta publishing is governed by `config/publish_policy.yaml` and the environment kill
+switch. REVIEW, REJECTED, failed editorial compliance, unknown image rights, invalid
+poster, duplicate publication, insufficient confidence, or failed preflight cannot
+publish. The idempotency key is SHA-256 of canonical source URL plus editorial version.
+
+## 18. Publication audit state
+
+SQLite `state_transitions` records `run_id`, `news_id`, timestamp, previous/next state,
+reason, and retry count. `publication_history` records the idempotency reservation and
+normalized Page/photo/post identifiers. `comment_history` permits one recorded first
+comment per post. A comment retry reuses the existing post and never creates another.

@@ -9,8 +9,14 @@ Package 01 establishes the ingestion and verification foundation for an automate
 ```text
 ┌───────────────────────────────┐
 │ Trigger                       │
-│ Manual / Codex Automation    │
+│ Manual shadow run            │
 │ Runtime timezone + run time   │
+└───────────────┬───────────────┘
+                ↓
+┌───────────────────────────────┐
+│ DETERMINISTIC DISCOVERY       │
+│ Configured RSS/Atom feeds     │
+│ Discovery evidence only       │
 └───────────────┬───────────────┘
                 ↓
 ┌───────────────────────────────┐
@@ -35,11 +41,11 @@ Package 01 establishes the ingestion and verification foundation for an automate
 │ - Duplicate/freshness gate    │
 └───────────────┬───────────────┘
                 ↓
-       VERIFIED_NEWS_PACKAGE[]
+       VERIFIED / REVIEW / REJECTED[]
                 ↓
 ┌───────────────────────────────┐
 │ PACKAGE 01 OUTPUT             │
-│ Persist + audit + handoff     │
+│ SQLite history + audit/report │
 └───────────────────────────────┘
 ```
 
@@ -67,9 +73,18 @@ the normal limit and scoring. M01 may deterministically collapse only identical
 normalized URLs or identical explicit reliable event keys; headline equality alone
 is only a hint and cannot cause rejection.
 
+Configured RSS/Atom sources implement the discovery interface. Feed summaries remain
+discovery provenance. Hybrid deduplication uses normalized URLs or explicit event keys;
+equal headlines alone remain separate observations.
+
 ### M02 Source Verifier
 
 M02 optimizes **precision + provenance**. It is an independent gate. A high M01 score cannot force an M02 pass.
+It fetches the exact article with bounded HTTPS requests and applies publisher-specific
+rules from `config/publishers.yaml`. Non-deterministic support decisions cross a file
+boundary to Codex Automation. `semantic_decisions.json` and every quotation are validated
+before the deterministic status gate. Missing, ambiguous, or ungrounded output is held;
+it never defaults to VERIFIED.
 
 ## 4. Freshness Model
 
@@ -234,6 +249,16 @@ Every run should persist:
 - rejection/review codes;
 - evidence summary sufficient to reproduce the decision.
 
+SQLite persists runs, candidates, terminal verifications and verified event history.
+The immutable content-addressed JSON audit retains raw observations and fetched evidence.
+Unexpected run/candidate errors create sanitized failure records. A candidate exception
+does not prevent independent candidates from completing where isolation is safe.
+
+`news_id` identifies a candidate inside one run: SHA-256 of contract version, `run_id`,
+and an explicit event key or normalized URL. `story_cluster_id` is the cross-source M01
+grouping hint. Cross-run duplicate identity comes from M02 `verified_event_key` and
+persistent event history, never from `news_id`.
+
 ## 12. Package 01 Boundary
 
 The following are explicitly future scope:
@@ -248,3 +273,7 @@ The following are explicitly future scope:
 - first comment posting;
 - post verification;
 - performance feedback.
+
+Repository-level automation adapters for strict editorial validation, local rendering,
+and disabled-by-default Meta integration do not change this boundary: M01/M02 never
+generate copy or publish. Codex Automation is the separate orchestration/editorial layer.

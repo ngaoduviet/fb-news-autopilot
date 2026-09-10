@@ -1,0 +1,5 @@
+timezone: Asia/Ho_Chi_Minh
+cycles:
+  - "05:00"
+  - "11:00"
+  - "20:00"

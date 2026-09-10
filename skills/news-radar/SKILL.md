@@ -98,6 +98,11 @@ Do not force a category quota when no strong verified story exists.
 
 ## 5. Discovery Workflow
 
+Live shadow discovery uses configured RSS/Atom adapters normalized into `Observation`.
+Feed titles, summaries, times, and links are discovery evidence only and cannot establish
+verification fields. Hybrid deduplication uses a normalized URL or explicit reliable
+event key, never title equality alone.
+
 ### Step 1 — Establish run context
 
 Read:
@@ -261,6 +266,10 @@ M01 must not:
 ## 8. Required Output
 
 Return an array of `CANDIDATE_NEWS_PACKAGE` objects conforming to `DATA-CONTRACT.md`.
+
+Each `news_id` is deterministic within one run and includes `run_id`; it changes when
+the same URL appears in a later run. `story_cluster_id` remains a cross-source grouping
+hint and does not replace M02 duplicate history.
 
 Also return run-level summary:
 

@@ -1,0 +1,16 @@
+required_capabilities:
+  publish_content:
+    any_of:
+      - CREATE_CONTENT
+      - PROFILE_PLUS_CREATE_CONTENT
+      - PROFILE_PLUS_FULL_CONTROL
+  moderate:
+    any_of:
+      - MODERATE
+      - PROFILE_PLUS_MODERATE
+      - PROFILE_PLUS_FULL_CONTROL
+required_permissions:
+  - pages_show_list
+  - pages_read_engagement
+  - pages_manage_posts
+  - pages_manage_engagement

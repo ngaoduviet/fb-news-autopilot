@@ -31,7 +31,9 @@ class NewsRadar:
         raw = []
         for o in observations:
             raw.append(asdict(o))
-            news_id = stable_id('news-', url_key(o.url) if valid_url(o.url) else o.url)
+            stable_candidate_key = ('event:' + normalized_text(o.event_key)) if o.event_key else (
+                'url:' + (url_key(o.url) if valid_url(o.url) else o.url))
+            news_id = stable_id('news-', 'candidate-v2\n' + context.run_id + '\n' + stable_candidate_key)
             if not valid_url(o.url):
                 audit.append(dict(stage='M01',news_id=news_id,code='REJECT_INVALID_URL',detail=o.url))
                 continue
@@ -60,7 +62,8 @@ class NewsRadar:
             cluster_basis = ('event:' + normalized_text(o.event_key)) if o.event_key else ('url:' + url_key(o.url))
             key = cluster_basis
             candidate = {'news_id':news_id,'story_cluster_id':stable_id('cluster-',key),
-                'discovery':{'query_or_feed':o.query_or_feed,'discovered_at':o.discovered_at,'discovered_url':o.url,'publisher_name':o.publisher,'headline_observed':o.headline,'publication_time_observed':pub.isoformat() if pub else None},
+                'discovery':{'query_or_feed':o.query_or_feed,'discovered_at':o.discovered_at,'discovered_url':o.url,'publisher_name':o.publisher,'headline_observed':o.headline,'publication_time_observed':pub.isoformat() if pub else None,
+                    'discovery_provider':o.discovery_provider,'search_evidence':o.search_evidence,'citation_metadata':[dict(item) for item in o.citation_metadata]},
                 'normalized':{'title':o.headline,'topic':o.topic,'summary_facts':list(o.facts),'main_entities':list(o.entities),'location':o.location},
                 'scores':values,'preliminary_freshness':{'bucket':bucket,'age_hours':max(0,age) if age is not None and age>=0 else None,'new_development_claimed':o.new_development_claimed,'requires_m02_freshness_verification':requires_freshness_verification},
                 'm01_status':'DISCOVERED'}

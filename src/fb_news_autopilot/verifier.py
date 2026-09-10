@@ -101,9 +101,15 @@ class SourceVerifier:
         basis = ('Verified material development supported by exact article: '+e.development_evidence if material_valid
                  else 'Verified substantive article update: '+e.development_evidence if update_valid
                  else 'Original article publication time; no verified substantive update replaces it')
-        uncertain_development = ((development is not None and e.material_development_supported is None)
+        publication_age = (at-pub).total_seconds()/3600 if pub else None
+        freshness_requires_development = bool(
+            publication_age is not None and publication_age > context.live_window_hours)
+        explicit_development_unclear = (
+            (development is not None and e.material_development_supported is None)
             or (e.material_development_supported is True and not material_valid)
             or (e.substantive_update_supported is True and not update_valid))
+        uncertain_development = (explicit_development_unclear
+            or (e.semantic_assessment_unclear and freshness_requires_development))
         if uncertain_development: review('REVIEW_NEW_DEVELOPMENT_UNCLEAR')
         age = (at-effective).total_seconds()/3600 if effective else None
         bucket = ('UNKNOWN' if age is None else 'LIVE' if age<=context.live_window_hours

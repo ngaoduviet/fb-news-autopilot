@@ -9,6 +9,10 @@ dist/
 .env.*
 !.env.example
 runs/
+data/history/*.db
+data/history/*.db-*
+data/queue/
+LIVE-SHADOW-REPORT.runtime.md
 .coverage
 htmlcov/
 .DS_Store

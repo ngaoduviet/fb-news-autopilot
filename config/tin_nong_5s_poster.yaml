@@ -1,0 +1,20 @@
+canvas:
+  width: 1080
+  height: 1350
+  image_ratio: 0.60
+  safe_margin: 72
+colors:
+  gradient_top: "#8E0712"
+  gradient_bottom: "#350006"
+  separator: "#FFFF00"
+  headline: "#FFFFFF"
+  highlight: "#FFFF00"
+  ribbon: "#D71920"
+typography:
+  headline_size: 82
+  headline_min_size: 54
+  ribbon_size: 36
+  line_spacing: 10
+  font_bold: "DejaVuSans-Bold.ttf"
+brand:
+  ribbon_text: "TIN NÓNG 5S"

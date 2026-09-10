@@ -1,0 +1,550 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fb-news-autopilot:candidate-queue:1.0.0",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "news_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "story_cluster_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+          },
+          "canonical_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin_quality": {
+            "enum": [
+              "PRIMARY_OFFICIAL",
+              "DIRECT_REPUTABLE_ARTICLE",
+              "SECONDARY_REPUTABLE_ARTICLE",
+              "AGGREGATOR_ONLY",
+              "UNKNOWN"
+            ]
+          },
+          "discovered_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+          },
+          "rss_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "article_text_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "article_evidence_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_image_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image_rights_status": {
+            "enum": [
+              "OWNED",
+              "LICENSED",
+              "PERMITTED",
+              "UNKNOWN"
+            ]
+          },
+          "deterministic_checks": {
+            "type": "object",
+            "properties": {
+              "url_valid": {
+                "type": "boolean"
+              },
+              "page_type": {
+                "enum": [
+                  "ARTICLE",
+                  "HOMEPAGE",
+                  "CATEGORY",
+                  "TAG_TOPIC",
+                  "SEARCH_RESULTS",
+                  "AGGREGATOR",
+                  "REDIRECT_ONLY",
+                  "INACCESSIBLE",
+                  "UNKNOWN"
+                ]
+              },
+              "article_accessible": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source_identity": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "publication_time_found": {
+                "type": "boolean"
+              },
+              "preliminary_freshness": {
+                "enum": [
+                  "LIVE",
+                  "HOT",
+                  "OLD",
+                  "UNKNOWN"
+                ]
+              },
+              "exact_article_candidate": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "url_valid",
+              "page_type",
+              "article_accessible",
+              "source_identity",
+              "publication_time_found",
+              "preliminary_freshness",
+              "exact_article_candidate"
+            ],
+            "additionalProperties": false
+          },
+          "needs_semantic_verification": {
+            "const": true
+          },
+          "candidate_contract": {
+            "type": "object",
+            "properties": {
+              "news_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "story_cluster_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "discovery": {
+                "type": "object",
+                "properties": {
+                  "query_or_feed": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "discovered_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+                  },
+                  "discovered_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+                  },
+                  "publisher_name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "headline_observed": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "publication_time_observed": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "discovery_provider": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "search_evidence": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "citation_metadata": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "reference_id": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "format": "uri",
+                          "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "kind": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "reference_id",
+                        "url",
+                        "title",
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "query_or_feed",
+                  "discovered_at",
+                  "discovered_url",
+                  "publisher_name",
+                  "headline_observed",
+                  "publication_time_observed",
+                  "discovery_provider",
+                  "search_evidence",
+                  "citation_metadata"
+                ],
+                "additionalProperties": false
+              },
+              "normalized": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "topic": {
+                    "enum": [
+                      "money_policy",
+                      "breaking_social",
+                      "life_alert",
+                      "tech_trend",
+                      "global",
+                      "sport",
+                      "entertainment",
+                      "other"
+                    ]
+                  },
+                  "summary_facts": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "main_entities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "location": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "title",
+                  "topic",
+                  "summary_facts",
+                  "main_entities",
+                  "location"
+                ],
+                "additionalProperties": false
+              },
+              "scores": {
+                "type": "object",
+                "properties": {
+                  "viral_potential": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "direct_life_impact": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "money_benefit_value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "emotional_pull": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "debate_potential": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "freshness_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "hot_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "audience_quality_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "money_value_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "production_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "top_content_score": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "viral_potential",
+                  "direct_life_impact",
+                  "money_benefit_value",
+                  "emotional_pull",
+                  "debate_potential",
+                  "freshness_score",
+                  "hot_score",
+                  "audience_quality_score",
+                  "money_value_score",
+                  "production_score",
+                  "top_content_score"
+                ],
+                "additionalProperties": false
+              },
+              "preliminary_freshness": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "enum": [
+                      "LIVE",
+                      "HOT",
+                      "OLD",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "age_hours": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "new_development_claimed": {
+                    "type": "boolean"
+                  },
+                  "requires_m02_freshness_verification": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "age_hours",
+                  "new_development_claimed",
+                  "requires_m02_freshness_verification"
+                ],
+                "additionalProperties": false
+              },
+              "m01_status": {
+                "enum": [
+                  "DISCOVERED",
+                  "SHORTLISTED",
+                  "REJECTED_PRELIMINARY"
+                ]
+              }
+            },
+            "required": [
+              "news_id",
+              "story_cluster_id",
+              "discovery",
+              "normalized",
+              "scores",
+              "preliminary_freshness",
+              "m01_status"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "news_id",
+          "story_cluster_id",
+          "title",
+          "source",
+          "source_url",
+          "canonical_url",
+          "published_at",
+          "origin_quality",
+          "discovered_at",
+          "rss_summary",
+          "article_text_path",
+          "article_evidence_path",
+          "source_image_url",
+          "image_rights_status",
+          "deterministic_checks",
+          "needs_semantic_verification",
+          "candidate_contract"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "generated_at",
+    "timezone",
+    "candidates"
+  ],
+  "additionalProperties": false
+}

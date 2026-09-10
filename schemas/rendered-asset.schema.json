@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:fb-news-autopilot:rendered-asset:1.0.0",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "news_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rendered_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "image_rights_status": {
+      "enum": [
+        "OWNED",
+        "LICENSED",
+        "PERMITTED"
+      ]
+    },
+    "source_image_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "poster_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "poster_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "width": {
+      "const": 1080
+    },
+    "height": {
+      "const": 1350
+    },
+    "safe_margin_valid": {
+      "const": true
+    }
+  },
+  "required": [
+    "schema_version",
+    "news_id",
+    "rendered_at",
+    "image_rights_status",
+    "source_image_sha256",
+    "poster_sha256",
+    "poster_path",
+    "width",
+    "height",
+    "safe_margin_valid"
+  ],
+  "additionalProperties": false
+}

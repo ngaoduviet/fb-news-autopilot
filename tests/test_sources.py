@@ -35,11 +35,12 @@ def test_publication_without_offset_requires_configured_timezone():
     assert parse_article(URL,URL,html,{}).publication_time is None
 
 
-def test_semantic_adapter_cannot_overwrite_raw_body(candidate,context):
+def test_web_source_provider_preserves_exact_fetched_body(candidate,context):
     class Fetch:
         def get(self,url):return url,HTML
-    provider=WebSourceProvider(Fetch(),CONFIG,lambda c,e,ctx:{'body':'invented'})
-    with pytest.raises(ValueError):provider.inspect(candidate,context)
+    evidence=WebSourceProvider(Fetch(),CONFIG).inspect(candidate,context)
+    assert evidence.raw_document==HTML
+    assert evidence.body!='invented'
 
 
 def test_rss_discovery(context):

@@ -1,0 +1,11 @@
+max_posts_per_cycle: 1
+review_auto_publish: false
+rejected_auto_publish: false
+unknown_image_rights_publish: false
+minimum_verification_confidence: 0.85
+allowed_source_tiers:
+  - PRIMARY_OFFICIAL
+  - DIRECT_REPUTABLE_ARTICLE
+  - SECONDARY_REPUTABLE_ARTICLE
+freshness_maximum_hours: 24
+duplicate_cooldown_hours: 168

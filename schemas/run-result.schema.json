@@ -114,6 +114,73 @@
                     "type": "null"
                   }
                 ]
+              },
+              "discovery_provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "search_evidence": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "citation_metadata": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "reference_id": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "pattern": "^https://[^/\\s?#]+(?:[/?#].*)?$"
+                    },
+                    "title": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "kind": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "reference_id",
+                    "url",
+                    "title",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
@@ -122,7 +189,10 @@
               "discovered_url",
               "publisher_name",
               "headline_observed",
-              "publication_time_observed"
+              "publication_time_observed",
+              "discovery_provider",
+              "search_evidence",
+              "citation_metadata"
             ],
             "additionalProperties": false
           },

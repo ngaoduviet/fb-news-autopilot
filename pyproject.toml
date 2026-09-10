@@ -7,7 +7,12 @@ name = "fb-news-autopilot"
 version = "0.1.0"
 description = "Package 01: auditable news discovery and source verification"
 requires-python = ">=3.11"
-dependencies = ["jsonschema>=4.23,<5", "beautifulsoup4>=4.12,<5"]
+dependencies = [
+  "jsonschema>=4.23,<5",
+  "beautifulsoup4>=4.12,<5",
+  "PyYAML>=6.0,<7",
+  "Pillow>=11,<13",
+]
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10"]
@@ -20,7 +25,12 @@ where = ["src"]
 
 [tool.setuptools.data-files]
 "share/fb-news-autopilot/schemas" = ["schemas/*.json"]
+"share/fb-news-autopilot/config" = ["config/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+  "live: opt-in tests against current external news services",
+  "meta_live: explicit read-only Meta preflight; never publishes",
+]

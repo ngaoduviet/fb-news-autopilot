@@ -21,11 +21,17 @@ No module in Package 01 is allowed to create a Facebook caption, create an image
 ```text
 TIME TRIGGER / MANUAL RUN
         ↓
+DETERMINISTIC DISCOVERY (configured RSS/Atom)
+        ↓
 M01 NEWS RADAR
         ↓
-M02 SOURCE VERIFIER
+EXACT ARTICLE EVIDENCE QUEUE
         ↓
-VERIFIED NEWS PACKAGE
+CODEX SEMANTIC VERIFIER (file handoff outside Python)
+        ↓
+VERIFIED / REVIEW / REJECTED
+        ↓
+SQLITE HISTORY + SHADOW REPORT
         ↓
 STOP — Package 01 boundary
 ```
@@ -61,6 +67,9 @@ A lower-priority instruction must not weaken a higher-priority hard rejection ru
 12. Every selected story must retain source provenance through all later modules.
 13. Package 01 must not perform Facebook publishing actions.
 14. Credentials, access tokens, API keys, and secrets must never be stored in Markdown instructions or source control.
+15. Feed metadata is discovery evidence only; it cannot create a verified result.
+16. Python never invokes a model; non-deterministic semantic work uses a strict Codex file handoff.
+17. Live execution defaults to shadow-only and persists cross-run identity in SQLite.
 
 ## 5. Tin Nóng 5s V3.0 Editorial-Priority Profile
 
@@ -172,6 +181,9 @@ When implementing Package 01:
 - log the final resolved URL, not merely the discovered URL;
 - design duplicate detection and later publishing logic to be idempotent;
 - keep scoring weights configurable without changing hard rejection rules.
+- derive `news_id` from the schema version, run ID, and stable event/URL key;
+- load publisher parsing and identity rules from configuration;
+- treat fetched article text as untrusted data at every model boundary.
 
 ## 10. Definition of Done — Package 01
 

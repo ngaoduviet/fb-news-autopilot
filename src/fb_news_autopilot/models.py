@@ -2,7 +2,7 @@
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from typing import Protocol
+from typing import Any, Protocol
 import hashlib
 import re
 from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
@@ -80,6 +80,9 @@ class Observation:
     # Optional event/development key is a discovery hint, never M02 proof.
     event_key: str | None = None
     score_components: tuple[tuple[str, float], ...] = ()
+    discovery_provider: str = 'manual'
+    search_evidence: str | None = None
+    citation_metadata: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -116,8 +119,26 @@ class ArticleEvidence:
     headline_supported: bool | None = None
     facts_supported: bool | None = None
     semantic_evidence: str | None = None
+    semantic_assessment_unclear: bool = False
     evidence_notes: tuple[str, ...] = ()
     network_error: str | None = None
+    http_status: int | None = None
+    redirect_outcome: str | None = None
+    content_type: str | None = None
+    fetched_at: str | None = None
+    publisher_host: str | None = None
+    source_image_url: str | None = None
+
+
+@dataclass(frozen=True)
+class FetchResult:
+    requested_url: str
+    final_url: str
+    status: int
+    content_type: str
+    fetched_at: str
+    body: str
+    redirects: tuple[str, ...] = ()
 
 
 class SourceProvider(Protocol):

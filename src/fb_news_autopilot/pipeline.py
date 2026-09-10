@@ -5,16 +5,27 @@ import json
 from .contracts import validate
 
 
-def run_pipeline(context,radar,verifier,observations,*,discovery_errors=()):
+def run_pipeline(context,radar,verifier,observations,*,discovery_errors=(),on_candidate=None,on_verification=None,on_failure=None):
     candidates,summary,audit,raw=radar.run(context,observations)
     results,evidence=[],[]
     failures=len(discovery_errors)
     for error in discovery_errors:
         audit.append(dict(stage='RUN',news_id=None,code='SOURCE_DISCOVERY_FAILURE',detail=json.dumps(error,ensure_ascii=False)))
+    if on_candidate:
+        for candidate in candidates:
+            on_candidate(candidate)
     for c in candidates:
         if c['m01_status']!='SHORTLISTED': continue
-        result,record=verifier.verify(c,context)
+        try:
+            result,record=verifier.verify(c,context)
+        except Exception as exc:
+            failures+=1
+            detail={'stage':'M02','error_type':type(exc).__name__,'message':'Candidate verification failed'}
+            if on_failure: detail=on_failure('M02',exc,c['news_id'])
+            audit.append(dict(stage='M02',news_id=c['news_id'],code='CANDIDATE_FAILURE',detail=json.dumps(detail,ensure_ascii=False)))
+            continue
         results.append(result); evidence.append(record)
+        if on_verification: on_verification(result,record)
         if record['evidence']['network_error']: failures+=1
         v=result['verification']
         audit.append(dict(stage='M02',news_id=c['news_id'],code=v['status'],detail=json.dumps(v,ensure_ascii=False)))
