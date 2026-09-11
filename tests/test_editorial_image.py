@@ -85,6 +85,46 @@ def test_sensitive_words_are_checked_in_every_editorial_surface(tmp_path, contex
     assert error.value.code=='HOLD_SENSITIVE_WORD_UNTRANSFORMED'
 
 
+def test_sensitive_word_in_source_url_is_excluded_from_content_scan(tmp_path, context, observation, article):
+    queue,_,_=make_queue(tmp_path,context,observation,article)
+    source_url='https://example.com/tin-tuc/con-dao'
+    queue['candidates'][0]['source_url']=source_url
+    queue['candidates'][0]['canonical_url']=source_url
+    document=editorial_document(queue)
+    document['first_comment']='Thông tin về vụ việc. '+words(78, 'chiTiet')+f" Nguồn tham khảo: Publisher Link bài viết gốc: {source_url} {DISCLOSURE}"
+    assert validate_editorial(document,queue['candidates'][0],decision(queue)['decisions'][0]) is document
+
+
+def test_sensitive_word_in_recommended_caption_is_rejected(tmp_path, context, observation, article):
+    queue,_,_=make_queue(tmp_path,context,observation,article)
+    document=editorial_document(queue)
+    document['caption_option_1']+=' chết'
+    document['recommended_caption']=document['caption_option_1']
+    with pytest.raises(HandoffHold) as error:
+        validate_editorial(document,queue['candidates'][0],decision(queue)['decisions'][0])
+    assert error.value.code=='HOLD_SENSITIVE_WORD_UNTRANSFORMED'
+
+
+def test_sensitive_word_in_headline_is_rejected(tmp_path, context, observation, article):
+    queue,_,_=make_queue(tmp_path,context,observation,article)
+    document=editorial_document(queue)
+    document['headline']='Thành phố xác nhận vụ chết mới hôm nay'
+    document['headline_lines']=['Thành phố xác nhận','vụ chết mới','hôm nay']
+    document['yellow_keywords']=[]
+    with pytest.raises(HandoffHold) as error:
+        validate_editorial(document,queue['candidates'][0],decision(queue)['decisions'][0])
+    assert error.value.code=='HOLD_SENSITIVE_WORD_UNTRANSFORMED'
+
+
+def test_sensitive_word_in_source_name_is_excluded_from_content_scan(tmp_path, context, observation, article):
+    queue,_,_=make_queue(tmp_path,context,observation,article)
+    document=editorial_document(queue)
+    document['source_name']='Côn Dao Media'
+    document['first_comment']=document['first_comment'].replace(
+        'Nguồn tham khảo: Publisher', 'Nguồn tham khảo: Côn Dao Media')
+    assert validate_editorial(document,queue['candidates'][0],decision(queue)['decisions'][0]) is document
+
+
 def test_caption_hook_and_emoji_limit(tmp_path, context, observation, article):
     queue,_,_=make_queue(tmp_path,context,observation,article)
     document=editorial_document(queue)

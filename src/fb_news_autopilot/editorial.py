@@ -43,6 +43,25 @@ def _hook_symbol_count(caption):
     return sum(unicodedata.category(character) == 'So' for character in first_line)
 
 
+def _editorial_content_fields(document):
+    """Return generated user-facing text while preserving provenance verbatim."""
+    comment_body = document['first_comment']
+    provenance_fields = (
+        f"Nguồn tham khảo: {document['source_name']}",
+        f"Link bài viết gốc: {document['source_url']}",
+    )
+    for provenance in provenance_fields:
+        comment_body = comment_body.replace(provenance, '', 1)
+    return [
+        document['caption_option_1'],
+        document['caption_option_2'],
+        document['recommended_caption'],
+        comment_body,
+        document['headline'],
+        *document['headline_lines'],
+    ]
+
+
 def compose_facebook_caption(editorial):
     """Compose the exact publish payload once, without mutating editorial text."""
     caption = editorial['recommended_caption']
@@ -97,9 +116,8 @@ def validate_editorial(document, candidate, decision, *, sensitive_words=None):
     if any(normalized_text(keyword) not in headline for keyword in document['yellow_keywords']):
         raise HandoffHold('HOLD_YELLOW_KEYWORD_INVALID', 'Yellow keywords must occur in the headline')
     terms = sensitive_words if sensitive_words is not None else load_sensitive_words()
-    fields = [document['caption_option_1'], document['caption_option_2'], document['first_comment'],
-              document['headline'], *document['headline_lines']]
-    if any(_contains_raw_term(text, term) for text in fields for term in terms):
+    content_fields = _editorial_content_fields(document)
+    if any(_contains_raw_term(text, term) for text in content_fields for term in terms):
         raise HandoffHold('HOLD_SENSITIVE_WORD_UNTRANSFORMED', 'Editorial output contains a raw sensitive term')
     compose_facebook_caption(document)
     return document
