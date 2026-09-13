@@ -53,18 +53,22 @@ def select_publishable(run_id, *, queue_root='data/queue',
             (State.EDITORIAL_PENDING,'Editorial artifact requested'),
             (State.EDITORIAL_READY,'Editorial artifact validated'),
             (State.ASSET_PENDING,'Approved asset requested')])
-        if store.current(news_id) in {State.COMPLIANCE_HOLD,State.HOLD_IMAGE_RIGHTS,State.FAILED}:
+        if store.current(news_id) in {State.COMPLIANCE_HOLD,State.FAILED}:
             holds[news_id]=[store.current(news_id).value]
             continue
         try:
             manifest,poster=load_asset_manifest(run_id,news_id,root=queue_root)
         except Exception as exc:
             code=getattr(exc,'code','HOLD_ASSET_MISSING')
-            if candidate.get('image_rights_status') == 'UNKNOWN' and store.current(news_id)==State.ASSET_PENDING:
+            if code == 'HOLD_ASSET_MISSING' and candidate.get('image_rights_status') == 'UNKNOWN':
                 code='HOLD_IMAGE_RIGHTS'
+            if code == 'HOLD_IMAGE_RIGHTS' and store.current(news_id)==State.ASSET_PENDING:
                 store.transition(news_id,State.HOLD_IMAGE_RIGHTS,'No approved asset is available')
             holds[news_id]=[code]
             continue
+        if store.current(news_id) == State.HOLD_IMAGE_RIGHTS:
+            store.transition(news_id,State.ASSET_PENDING,
+                             'Approved rendered asset is now available')
         if store.current(news_id) == State.ASSET_PENDING:
             store.transition(news_id,State.ASSET_READY,'Rendered asset validated')
         canonical=candidate.get('canonical_url') or candidate['source_url']

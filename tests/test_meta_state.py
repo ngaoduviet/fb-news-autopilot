@@ -4,6 +4,8 @@ from PIL import Image
 import pytest
 import yaml
 
+import fb_news_autopilot.selection as selection_module
+from fb_news_autopilot.cli import main as cli_main
 from fb_news_autopilot.facebook.auth import MetaConfig, run_preflight
 from fb_news_autopilot.facebook.client import MetaClient
 from fb_news_autopilot.facebook.comments import publish_first_comment
@@ -11,10 +13,11 @@ from fb_news_autopilot.facebook.errors import MetaError
 from fb_news_autopilot.facebook.publisher import normalize_photo_response, publish_photo
 from fb_news_autopilot.policy import auto_publish_enabled, compliance_gate, load_policy
 from fb_news_autopilot.publication import PublicationCoordinator
+from fb_news_autopilot.queueing import HandoffHold
 from fb_news_autopilot.state import State, StateStore, publication_key
 from fb_news_autopilot.selection import rank_publishable, select_publishable
 from fb_news_autopilot.image import render_poster
-from fb_news_autopilot.assets import write_asset_manifest
+from fb_news_autopilot.assets import load_asset_manifest, resolve_asset, write_asset_manifest
 from fb_news_autopilot.cycle import run_cycle
 from test_editorial_image import editorial_document
 from test_queueing import decision, make_queue
@@ -89,6 +92,27 @@ def prepare_ready(store, news_id):
 def publication_editorial():
     return {'editorial_version':'v1','recommended_caption':'[NÓNG] caption',
             'hashtags':['#Mot','#Hai','#Ba','#Bon','#Nam'],'first_comment':'first comment'}
+
+
+def selection_fixture(tmp_path, context, observation, article):
+    queue,_,directory=make_queue(tmp_path,context,observation,article)
+    (directory/'semantic_decisions.json').write_text(
+        json.dumps(decision(queue)),encoding='utf-8')
+    document=editorial_document(queue)
+    editorial_dir=directory/'editorial'; editorial_dir.mkdir()
+    (editorial_dir/(document['news_id']+'.json')).write_text(
+        json.dumps(document),encoding='utf-8')
+    return queue,document,directory,tmp_path/'history.db'
+
+
+def add_rendered_asset(tmp_path, context, document, directory, rights):
+    source=tmp_path/(rights.casefold()+'-source.png')
+    Image.new('RGB',(1600,900),'blue').save(source)
+    poster,metadata=render_poster(
+        source,document,rights,directory/'assets'/(document['news_id']+'.png'))
+    manifest,_=write_asset_manifest(
+        context.run_id,document['news_id'],source,poster,rights,metadata,root=tmp_path)
+    return manifest,poster
 
 
 def test_meta_missing_credentials_preflight(monkeypatch):
@@ -280,12 +304,12 @@ def test_photo_id_is_never_used_as_comment_post_id(tmp_path):
     store=StateStore(tmp_path/'history.db','run-1'); prepare_ready(store,'news-1')
     result=PublicationCoordinator(client,store).execute(news_id='news-1',canonical_url='https://example.com/a',
         editorial=publication_editorial(),image_path=image_path,page_id='42')
-    assert result['state']=='PUBLISHED_COMMENT_PENDING'
+    assert result['state']=='RECONCILIATION_REQUIRED'
     assert result['publication']['photo_id']=='photo-only' and result['publication']['post_id'] is None
     assert len(transport.calls)==1
     again=PublicationCoordinator(client,store).execute(news_id='news-1',canonical_url='https://example.com/a',
         editorial=publication_editorial(),image_path=image_path,page_id='42')
-    assert again['state']=='PUBLISHED_COMMENT_PENDING' and len(transport.calls)==1
+    assert again['state']=='RECONCILIATION_REQUIRED' and len(transport.calls)==1
 
 
 def test_publication_coordinator_persists_operational_transitions(tmp_path):
@@ -325,6 +349,103 @@ def test_select_publishable_persists_full_upstream_state_path(tmp_path, context,
     states=[row['next_state'] for row in StateStore(db,context.run_id).transitions(document['news_id'])]
     assert states==['DISCOVERED','FETCHED','SEMANTIC_PENDING','VERIFIED','EDITORIAL_PENDING',
                     'EDITORIAL_READY','ASSET_PENDING','ASSET_READY','READY_TO_PUBLISH']
+
+
+@pytest.mark.parametrize('rights',['OWNED','LICENSED','PERMITTED'])
+def test_select_publishable_uses_approved_rights_from_rendered_manifest(
+        tmp_path,context,observation,article,rights):
+    _,document,directory,db=selection_fixture(tmp_path,context,observation,article)
+    manifest,_=add_rendered_asset(tmp_path,context,document,directory,rights)
+
+    result=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+
+    assert manifest['image_rights_status']==rights
+    assert result['selected_news_ids']==[document['news_id']]
+    assert document['news_id'] not in result['holds']
+
+
+def test_select_publishable_unknown_manifest_rights_holds(
+        tmp_path,context,observation,article,monkeypatch):
+    _,document,directory,db=selection_fixture(tmp_path,context,observation,article)
+    manifest,poster=add_rendered_asset(tmp_path,context,document,directory,'OWNED')
+    monkeypatch.setattr(
+        selection_module,'load_asset_manifest',
+        lambda *args,**kwargs:({**manifest,'image_rights_status':'UNKNOWN'},poster))
+
+    result=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+
+    assert result['selected_news_ids']==[]
+    assert result['holds'][document['news_id']]==['HOLD_IMAGE_RIGHTS']
+
+
+def test_select_publishable_missing_manifest_holds_fail_closed(
+        tmp_path,context,observation,article):
+    _,document,_,db=selection_fixture(tmp_path,context,observation,article)
+
+    result=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+
+    assert result['selected_news_ids']==[]
+    assert result['holds'][document['news_id']]==['HOLD_IMAGE_RIGHTS']
+    assert StateStore(db,context.run_id).current(document['news_id'])==State.HOLD_IMAGE_RIGHTS
+
+
+def test_approved_manifest_recovers_prior_image_rights_hold_with_empty_fallbacks(
+        tmp_path,context,observation,article):
+    queue,document,directory,db=selection_fixture(tmp_path,context,observation,article)
+    empty_config=tmp_path/'image-sources.yaml'
+    owned=tmp_path/'owned'; owned.mkdir()
+    empty_config.write_text(
+        f'owned_library_root: {owned}\nfallbacks: {{}}\n',encoding='utf-8')
+    with pytest.raises(HandoffHold) as error:
+        resolve_asset(queue['candidates'][0],config_path=empty_config)
+    assert error.value.code=='HOLD_IMAGE_RIGHTS'
+    first=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+    assert first['holds'][document['news_id']]==['HOLD_IMAGE_RIGHTS']
+
+    add_rendered_asset(tmp_path,context,document,directory,'OWNED')
+    second=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+
+    assert second['selected_news_ids']==[document['news_id']]
+    states=[row['next_state'] for row in StateStore(db,context.run_id).transitions(document['news_id'])]
+    assert states[-4:]==[
+        'HOLD_IMAGE_RIGHTS','ASSET_PENDING','ASSET_READY','READY_TO_PUBLISH']
+
+
+def test_render_rights_persist_and_selector_reads_canonical_manifest_field(
+        tmp_path,context,observation,article,monkeypatch):
+    _,document,directory,db=selection_fixture(tmp_path,context,observation,article)
+    add_rendered_asset(tmp_path,context,document,directory,'LICENSED')
+    persisted,poster=load_asset_manifest(
+        context.run_id,document['news_id'],root=tmp_path)
+    observed=[]
+    def load_and_observe(*args,**kwargs):
+        observed.append(persisted['image_rights_status'])
+        return persisted,poster
+    monkeypatch.setattr(selection_module,'load_asset_manifest',load_and_observe)
+
+    result=select_publishable(context.run_id,queue_root=tmp_path,history_path=db)
+
+    assert persisted['image_rights_status']=='LICENSED'
+    assert observed==['LICENSED']
+    assert result['selected_news_ids']==[document['news_id']]
+
+
+def test_publish_dry_run_with_approved_manifest_makes_no_meta_http_calls(
+        tmp_path,context,observation,article,monkeypatch,capsys):
+    _,document,directory,db=selection_fixture(tmp_path,context,observation,article)
+    add_rendered_asset(tmp_path,context,document,directory,'PERMITTED')
+    def unexpected_meta_call(*args,**kwargs):
+        raise AssertionError('dry-run must not call Meta HTTP')
+    monkeypatch.setattr(MetaClient,'request',unexpected_meta_call)
+
+    exit_code=cli_main([
+        'publish','--run-id',context.run_id,'--queue-root',str(tmp_path),
+        '--news-id',document['news_id'],'--history-db',str(db),'--dry-run'])
+    output=json.loads(capsys.readouterr().out)
+
+    assert exit_code==0
+    assert output=={'dry_run':True,'gate':{'passed':True,'reason_codes':[]},
+                    'would_publish':True}
 
 
 def test_select_publishable_enforces_duplicate_cooldown(tmp_path, context, observation, article):

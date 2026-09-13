@@ -207,3 +207,19 @@ def test_rendered_asset_manifest_detects_tampering(tmp_path, context, observatio
     with pytest.raises(HandoffHold) as error:
         load_asset_manifest(context.run_id, document['news_id'], root=tmp_path)
     assert error.value.code == 'HOLD_ASSET_TAMPERED'
+
+
+def test_rendered_asset_manifest_with_unknown_rights_holds(tmp_path, context, observation, article):
+    queue,_,directory=make_queue(tmp_path,context,observation,article)
+    source=tmp_path/'source.png'; Image.new('RGB',(1600,900),'blue').save(source)
+    output,metadata=render_poster(
+        source,editorial_document(queue),'OWNED',directory/'assets'/'poster.png')
+    document,path=write_asset_manifest(
+        context.run_id,queue['candidates'][0]['news_id'],source,output,'OWNED',metadata,
+        root=tmp_path)
+    path.write_text(json.dumps({**document,'image_rights_status':'UNKNOWN'}),encoding='utf-8')
+
+    with pytest.raises(HandoffHold) as error:
+        load_asset_manifest(context.run_id,document['news_id'],root=tmp_path)
+
+    assert error.value.code=='HOLD_IMAGE_RIGHTS'

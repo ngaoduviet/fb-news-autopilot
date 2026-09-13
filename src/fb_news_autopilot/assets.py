@@ -64,6 +64,7 @@ def write_asset_manifest(run_id, news_id, source_path, poster_path, rights, meta
         'source_image_sha256': sha256_file(source_path),
         'poster_sha256': sha256_file(poster_path),
         'poster_path': str(poster_path.relative_to(directory)),
+        'image_layout': 'SINGLE',
         'width': 1080, 'height': 1350, 'safe_margin_valid': True,
     })
     return document, _write_immutable(directory / 'assets' / (news_id + '.json'), document)
@@ -78,7 +79,15 @@ def load_asset_manifest(run_id, news_id, *, root='data/queue'):
     if not path.exists():
         raise HandoffHold('HOLD_ASSET_MISSING', 'Rendered asset manifest is missing')
     try:
-        document = validate('rendered-asset', json.loads(path.read_text(encoding='utf-8')))
+        raw_document = json.loads(path.read_text(encoding='utf-8'))
+        if (raw_document.get('image_rights_status') is not None and
+                raw_document['image_rights_status'] not in APPROVED_RIGHTS):
+            raise HandoffHold(
+                'HOLD_IMAGE_RIGHTS',
+                'Rendered asset rights are not owned, licensed, or permitted')
+        document = validate('rendered-asset', raw_document)
+        if document['news_id'] != news_id:
+            raise HandoffHold('HOLD_ASSET_INVALID', 'Rendered asset news_id does not match')
         poster = artifact_path(directory, document['poster_path'])
     except Exception as exc:
         if isinstance(exc, HandoffHold):
