@@ -39,7 +39,9 @@ or infer reuse rights from the publisher page.
   rerun validation. Never edit the candidate/evidence files.
 - `HOLD_IMAGE_RIGHTS`: obtain documented permission or select an owned/licensed asset.
 - Meta preflight failure: keep publishing disabled and resolve the classified Page,
-  task, credential, or API error in Meta's tools.
+  credential, or API error in Meta's tools. A successful runtime identity check does not
+  verify provisioning tasks, user/app permissions, or actual publish/comment authority;
+  those remain separate setup evidence and explicit-test blockers.
 - `PUBLISHED_COMMENT_PENDING`: retry only the comment when a confirmed `post_id` exists.
   Never use `photo_id` as the comment target, delete the reservation, or recreate the post.
 - A reservation with no `post_id` after an uncertain network result requires manual

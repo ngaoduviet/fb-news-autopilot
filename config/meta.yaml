@@ -14,3 +14,21 @@ required_permissions:
   - pages_read_engagement
   - pages_manage_posts
   - pages_manage_engagement
+
+# Non-secret evidence captured from the official /me/accounts provisioning flow.
+# Never place a User token, Page token, App Secret, or Authorization header here.
+provisioning_evidence:
+  page_id: "1215703644949288"
+  page_name: Tin Nóng 5s
+  graph_api_version: v26.0
+  verified_at: "2026-09-13T19:09:42+07:00"
+  tasks:
+    - CREATE_CONTENT
+    - MODERATE
+    - MESSAGING
+    - ANALYZE
+    - ADVERTISE
+    - MANAGE
+  normalized_capabilities:
+    - publish_content
+    - moderate

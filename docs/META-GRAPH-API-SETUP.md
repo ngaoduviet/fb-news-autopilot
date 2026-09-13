@@ -33,19 +33,32 @@ export META_GRAPH_API_VERSION='current-supported-version'
 export META_AUTO_PUBLISH=false
 ```
 
-6. Run `.venv/bin/fb-news-autopilot meta-preflight`. It checks configuration, retrieves
-   `id,name,tasks` plus the token permission response, verifies the expected Page ID,
-   and compares both responses with `config/meta.yaml`. Legacy `CREATE_CONTENT` and
-   `MODERATE` tasks and New Page Experience `PROFILE_PLUS_CREATE_CONTENT`,
+6. Run `.venv/bin/fb-news-autopilot meta-preflight`. With the Page Access Token it makes
+   one read-only request for `GET /{META_PAGE_ID}?fields=id,name`, verifies the exact Page
+   ID, requires a Page name, and reports whether runtime identity was verified. It does
+   not request `tasks` from the Page object and does not call `/me/permissions`.
+7. Capability tasks are provisioning evidence. Obtain them through Meta's documented
+   `GET /me/accounts?fields=id,name,access_token,tasks` flow using a User Access Token
+   outside production runtime. If the non-secret evidence is recorded in
+   `config/meta.yaml`, include only `page_id`, `page_name`, `tasks`,
+   `normalized_capabilities`, `verified_at`, and `graph_api_version`; never include
+   either access token. The loader recomputes normalized capabilities and rejects the
+   record if its declared values do not match the raw tasks. Legacy `CREATE_CONTENT` and
+   `MODERATE`, New Page Experience `PROFILE_PLUS_CREATE_CONTENT` and
    `PROFILE_PLUS_MODERATE`, and `PROFILE_PLUS_FULL_CONTROL` are normalized into the
-   stable `publish_content` and `moderate` capabilities. Permissions remain a separate
-   gate. The result reports raw tasks, normalized capabilities, granted permissions,
-   missing capabilities, and missing permissions; it does not print the token.
-7. Validate response shape and Page visibility with an operator-controlled test process
+   stable `publish_content` and `moderate` capabilities. The current record contains the
+   non-secret v26.0 result for Page `1215703644949288`, verified on 2026-09-13. If the
+   record is removed, preflight reports `NOT_RUNTIME_VERIFIABLE` rather than inventing a
+   result.
+8. User/app permission grants remain a provisioning/setup concern. Runtime reports
+   `NOT_DIRECTLY_VERIFIABLE_WITH_PAGE_TOKEN`; it does not treat Page-token
+   `/me/permissions` as proof. Explicit publish and comment authorization must be proven
+   later in an operator-controlled test before the publication gate can be enabled.
+9. Validate response shape and Page visibility with an operator-controlled test process
    before considering `META_AUTO_PUBLISH=true`. The repository's default tests never
    make a Meta request and no live publish test is enabled.
 
-## Preflight integration blocker
+## Preflight evidence boundary
 
 Meta's current official Postman collection documents Page task discovery through
 `GET /me/accounts?fields=name,access_token,tasks` using a User Access Token. Its separate
@@ -59,12 +72,14 @@ granted or declined by a User. The reviewed official material does not establish
 `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, and
 `pages_manage_engagement`.
 
-The current implementation therefore remains a fail-closed read-only probe whose task
-and permission response assumptions are unresolved until tested against the real Page,
-app, API version, and Page token. Do not interpret a mocked preflight pass as production
-authorization. Do not add a User Access Token to the production runtime during this
-checkpoint. Keep `META_AUTO_PUBLISH=false`; after Meta is configured, capture only
-sanitized response shapes and decide the final verification flow from that evidence.
+The runtime now treats a successful Page-token response as Page identity evidence only.
+A passing runtime preflight is not production publication authorization. Capability
+status comes only from the optional non-secret provisioning record, while permissions
+and actual publish/comment authorization remain explicitly unverified. The publication
+command therefore remains held with `HOLD_META_PUBLISH_AUTHORIZATION_UNVERIFIED` even
+after identity succeeds. Do not add a User Access Token to production runtime. Keep
+`META_AUTO_PUBLISH=false` until a separate reviewed change records the explicit test
+result and enables the publication authorization gate.
 
 The application does not need or store an App Secret at runtime for these Page-token
 operations. Keep any App Secret solely in Meta/secret-management setup where required.

@@ -191,8 +191,10 @@ Legacy manual fixture mode remains available with --input FILE.''')
             return 1
         client=MetaClient(config.version,config.access_token)
         preflight=run_preflight(config,client)
-        if not preflight.ok:
-            _print({'published':False,'preflight':preflight.to_dict()})
+        if not preflight.ok or not preflight.publication_ready:
+            _print({'published':False,
+                    'hold_code':'HOLD_META_PUBLISH_AUTHORIZATION_UNVERIFIED',
+                    'preflight':preflight.to_dict()})
             return 1
         result=PublicationCoordinator(client,store).execute(news_id=args.news_id,
             canonical_url=candidate['canonical_url'] or candidate['source_url'],editorial=document,

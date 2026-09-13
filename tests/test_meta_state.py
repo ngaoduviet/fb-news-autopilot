@@ -2,6 +2,7 @@ import json
 
 from PIL import Image
 import pytest
+import yaml
 
 from fb_news_autopilot.facebook.auth import MetaConfig, run_preflight
 from fb_news_autopilot.facebook.client import MetaClient
@@ -34,14 +35,48 @@ class Transport:
         return 200, self.responses.pop(0)
 
 
-PERMISSIONS=['pages_show_list','pages_read_engagement','pages_manage_posts','pages_manage_engagement']
+def meta_requirements(tmp_path, tasks=None, page_id='42'):
+    value = {
+        'required_capabilities': {
+            'publish_content': {'any_of': [
+                'CREATE_CONTENT', 'PROFILE_PLUS_CREATE_CONTENT', 'PROFILE_PLUS_FULL_CONTROL']},
+            'moderate': {'any_of': [
+                'MODERATE', 'PROFILE_PLUS_MODERATE', 'PROFILE_PLUS_FULL_CONTROL']},
+        },
+        'required_permissions': [
+            'pages_show_list', 'pages_read_engagement',
+            'pages_manage_posts', 'pages_manage_engagement'],
+        'provisioning_evidence': None,
+    }
+    if tasks is not None:
+        normalized = []
+        if set(tasks) & {'CREATE_CONTENT', 'PROFILE_PLUS_CREATE_CONTENT',
+                         'PROFILE_PLUS_FULL_CONTROL'}:
+            normalized.append('publish_content')
+        if set(tasks) & {'MODERATE', 'PROFILE_PLUS_MODERATE',
+                         'PROFILE_PLUS_FULL_CONTROL'}:
+            normalized.append('moderate')
+        value['provisioning_evidence'] = {
+            'page_id': page_id,
+            'page_name': 'Tin Nóng 5s',
+            'tasks': tasks,
+            'normalized_capabilities': normalized,
+            'verified_at': '2026-09-13T10:00:00+07:00',
+            'graph_api_version': 'v26.0',
+        }
+    path = tmp_path / 'meta.yaml'
+    path.write_text(yaml.safe_dump(value, allow_unicode=True), encoding='utf-8')
+    return path
 
 
-def preflight(tasks, permissions=PERMISSIONS):
-    transport=Transport(responses=[{'id':'42','name':'Tin Nóng 5s','tasks':tasks},
-        {'data':[{'permission':name,'status':'granted'} for name in permissions]}])
-    return run_preflight(MetaConfig('42','fixture-token','v26.0'),
-                         MetaClient('v26.0','fixture-token',transport=transport))
+def preflight(tmp_path, tasks=None, *, response=None, evidence_page_id='42'):
+    transport = Transport(responses=[response or {'id': '42', 'name': 'Tin Nóng 5s'}])
+    result = run_preflight(
+        MetaConfig('42', 'fixture-token', 'v26.0'),
+        MetaClient('v26.0', 'fixture-token', transport=transport),
+        requirements_path=meta_requirements(tmp_path, tasks, evidence_page_id),
+    )
+    return result, transport
 
 
 def prepare_ready(store, news_id):
@@ -74,39 +109,119 @@ def test_meta_token_never_logged():
     assert token not in json.dumps(client.audit)
 
 
-def test_meta_preflight_identity_and_tasks():
-    transport = Transport(responses=[{'id': '42', 'name': 'Tin Nóng 5s',
-                                      'tasks': ['CREATE_CONTENT', 'MODERATE']},
-                                     {'data': [
-                                         {'permission': 'pages_show_list', 'status': 'granted'},
-                                         {'permission': 'pages_read_engagement', 'status': 'granted'},
-                                         {'permission': 'pages_manage_posts', 'status': 'granted'},
-                                         {'permission': 'pages_manage_engagement', 'status': 'granted'},
-                                     ]}])
-    client = MetaClient('v26.0', 'fixture-token', transport=transport)
-    result = run_preflight(MetaConfig('42', 'fixture-token', 'v26.0'), client)
+def test_meta_preflight_uses_page_identity_fields_only(tmp_path):
+    result, transport = preflight(tmp_path)
     assert result.ok is True
     assert result.page_id == '42'
-    assert 'pages_manage_posts' in result.permissions
+    assert result.token_valid is True
+    assert result.runtime_identity_verified is True
+    assert len(transport.calls) == 1
+    assert transport.calls[0][2] == {'fields': 'id,name', 'access_token': 'fixture-token'}
+    assert not any('tasks' in str(call) or '/me/permissions' in call[1]
+                   for call in transport.calls)
 
 
 @pytest.mark.parametrize('tasks',[['CREATE_CONTENT','MODERATE'],
     ['PROFILE_PLUS_CREATE_CONTENT','PROFILE_PLUS_MODERATE'],['PROFILE_PLUS_FULL_CONTROL']])
-def test_meta_capability_aliases_pass(tasks):
-    result=preflight(tasks)
+def test_meta_provisioning_capability_aliases_normalize(tmp_path, tasks):
+    result,_=preflight(tmp_path,tasks)
     assert result.ok is True
     assert set(result.normalized_capabilities)=={'publish_content','moderate'}
-    assert result.raw_tasks==tuple(tasks)
+    assert result.provisioning_tasks==tuple(tasks)
+    assert set(result.capabilities.values())=={'PROVISIONING_VERIFIED'}
 
 
-def test_meta_unrelated_tasks_and_missing_permissions_fail():
-    result=preflight(['PROFILE_PLUS_ANALYZE'])
-    assert set(result.missing_capabilities)=={'publish_content','moderate'}
-    assert result.error_category=='INSUFFICIENT_PAGE_TASKS'
-    for missing in ('pages_manage_posts','pages_manage_engagement'):
-        result=preflight(['CREATE_CONTENT','MODERATE'],[p for p in PERMISSIONS if p!=missing])
-        assert result.error_category=='INSUFFICIENT_PERMISSIONS'
-        assert result.missing_permissions==(missing,)
+def test_meta_no_provisioning_evidence_is_reported_honestly(tmp_path):
+    result,_=preflight(tmp_path)
+    assert result.ok is True
+    assert result.provisioning_tasks == ()
+    assert result.normalized_capabilities == ()
+    assert set(result.capabilities.values()) == {'NOT_RUNTIME_VERIFIABLE'}
+    assert result.provisioning_evidence_status == 'NOT_RUNTIME_VERIFIABLE'
+    assert result.permissions['runtime_status'] == 'NOT_DIRECTLY_VERIFIABLE_WITH_PAGE_TOKEN'
+    assert result.publication_ready is False
+
+
+def test_meta_page_id_mismatch_fails(tmp_path):
+    result,_=preflight(tmp_path,response={'id':'84','name':'Other Page'})
+    assert result.ok is False
+    assert result.token_valid is True
+    assert result.runtime_identity_verified is False
+    assert result.error_category == 'PAGE_ID_MISMATCH'
+
+
+def test_meta_invalid_page_token_fails(tmp_path):
+    transport=Transport(errors=[MetaError('PERMISSION_OR_API_ERROR','Invalid OAuth access token',400)])
+    result=run_preflight(
+        MetaConfig('42','fixture-token','v26.0'),
+        MetaClient('v26.0','fixture-token',transport=transport),
+        requirements_path=meta_requirements(tmp_path))
+    assert result.ok is False
+    assert result.token_valid is False
+    assert result.error_category == 'PERMISSION_OR_API_ERROR'
+
+
+def test_meta_provisioning_page_id_must_match_runtime_page(tmp_path):
+    result,_=preflight(tmp_path,['CREATE_CONTENT','MODERATE'],evidence_page_id='84')
+    assert result.ok is False
+    assert result.runtime_identity_verified is True
+    assert result.error_category == 'PROVISIONING_PAGE_ID_MISMATCH'
+
+
+@pytest.mark.parametrize('forbidden_field',[
+    'access_token','user_access_token','page_access_token','app_secret','authorization'])
+def test_meta_provisioning_evidence_rejects_token_fields(tmp_path, forbidden_field):
+    path=meta_requirements(tmp_path,['CREATE_CONTENT','MODERATE'])
+    value=yaml.safe_load(path.read_text(encoding='utf-8'))
+    value['provisioning_evidence'][forbidden_field]='must-not-be-accepted'
+    path.write_text(yaml.safe_dump(value,allow_unicode=True),encoding='utf-8')
+    result=run_preflight(
+        MetaConfig('42','fixture-token','v26.0'),
+        MetaClient('v26.0','fixture-token',transport=Transport()),
+        requirements_path=path)
+    assert result.ok is False
+    assert result.error_category == 'INVALID_CONFIGURATION'
+
+
+def test_meta_provisioning_evidence_never_enables_publication(tmp_path):
+    result,_=preflight(tmp_path,['CREATE_CONTENT','MODERATE'])
+    assert result.capabilities == {
+        'publish_content': 'PROVISIONING_VERIFIED',
+        'moderate': 'PROVISIONING_VERIFIED'}
+    assert result.publication_authorization == 'NOT_YET_PROVEN_BY_EXPLICIT_TEST'
+    assert result.publication_ready is False
+    assert result.auto_publish is False
+
+
+def test_real_provisioning_record_combines_with_runtime_page_identity():
+    page_id='1215703644949288'
+    transport=Transport(responses=[{'id':page_id,'name':'Tin Nóng 5s'}])
+    result=run_preflight(
+        MetaConfig(page_id,'fixture-token','v26.0'),
+        MetaClient('v26.0','fixture-token',transport=transport))
+    assert result.ok is True
+    assert result.token_valid is True
+    assert result.runtime_identity_verified is True
+    assert result.capabilities == {
+        'publish_content': 'PROVISIONING_VERIFIED',
+        'moderate': 'PROVISIONING_VERIFIED'}
+    assert result.permissions['runtime_status'] == 'NOT_DIRECTLY_VERIFIABLE_WITH_PAGE_TOKEN'
+    assert result.publication_authorization == 'NOT_YET_PROVEN_BY_EXPLICIT_TEST'
+    assert result.publication_ready is False
+    assert result.auto_publish is False
+
+
+def test_meta_runtime_does_not_require_user_access_token(tmp_path, monkeypatch):
+    monkeypatch.setenv('META_PAGE_ID','42')
+    monkeypatch.setenv('META_PAGE_ACCESS_TOKEN','fixture-token')
+    monkeypatch.setenv('META_GRAPH_API_VERSION','v26.0')
+    monkeypatch.delenv('META_USER_ACCESS_TOKEN',raising=False)
+    transport=Transport(responses=[{'id':'42','name':'Tin Nóng 5s'}])
+    result=run_preflight(
+        client=MetaClient('v26.0','fixture-token',transport=transport),
+        requirements_path=meta_requirements(tmp_path))
+    assert result.ok is True
+    assert result.auto_publish is False
 
 
 def test_photo_publish_request_mock_and_response_normalization(tmp_path):
