@@ -21,19 +21,27 @@ class PublicationCoordinator:
             self.store.transition(news_id, State.PUBLISHING, 'Meta photo publish started')
             try:
                 publication = publish_photo(self.client, page_id, image_path, compose_facebook_caption(editorial))
-            except Exception:
+            except Exception as exc:
+                if getattr(exc, 'category', None) == 'NETWORK_ERROR':
+                    self.store.set_publication_status(key, 'RECONCILIATION_REQUIRED')
+                    self.store.transition(
+                        news_id, State.RECONCILIATION_REQUIRED,
+                        'Photo publish network outcome is ambiguous; reconciliation required')
+                    return {'idempotency_key': key, 'publication': self.store.publication(key),
+                            'comment': None, 'state': 'RECONCILIATION_REQUIRED'}
+                self.store.set_publication_status(key, 'FAILED')
                 self.store.transition(news_id, State.FAILED,
-                                      'Photo publish outcome is uncertain; automatic retry prohibited')
+                                      'Photo publish failed before confirmed success')
                 raise
             self.store.record_publication(key, publication,
-                                          'PUBLISHED' if publication.post_id else 'PUBLISHED_COMMENT_PENDING')
+                                          'PUBLISHED' if publication.post_id else 'RECONCILIATION_REQUIRED')
             self.store.transition(news_id, State.PUBLISHED if publication.post_id
-                                  else State.PUBLISHED_COMMENT_PENDING,
+                                  else State.RECONCILIATION_REQUIRED,
                                   'Meta photo response normalized')
             record = self.store.publication(key)
         if not record.get('post_id'):
             return {'idempotency_key': key, 'publication': record, 'comment': None,
-                    'state': 'PUBLISHED_COMMENT_PENDING' if record.get('photo_id') else 'COMPLIANCE_HOLD'}
+                    'state': 'RECONCILIATION_REQUIRED' if record.get('photo_id') else 'COMPLIANCE_HOLD'}
         post_id = record['post_id']
         if self.store.comment_recorded(post_id):
             state = 'VERIFIED_ON_FACEBOOK' if record['status']=='VERIFIED_ON_FACEBOOK' else 'COMMENTED'

@@ -63,6 +63,8 @@ commands:
   render               render one rights-approved 1080x1350 poster
   select-publishable   select policy-compliant publication IDs
   meta-preflight       perform read-only Page identity/capability checks
+  meta-live-publish-test
+                       execute one explicitly confirmed Gate 6 photo/comment test
   publish              dry-run or execute one fully gated publication
   run-cycle            inspect one bounded automation cycle
 
@@ -140,6 +142,29 @@ Legacy manual fixture mode remains available with --input FILE.''')
         result=run_preflight()
         _print(result.to_dict())
         return 0 if result.ok else 1
+    if argv and argv[0]=='meta-live-publish-test':
+        from .live_publish import LivePublishHold,run_live_publish_test
+        from .security import redact
+        parser=_run_id_parser('Run one explicitly confirmed Gate 6 Meta write test')
+        parser.add_argument('--news-id',required=True)
+        parser.add_argument('--confirm-page-id',required=True)
+        parser.add_argument('--history-db',default='data/history/fb_news_autopilot.db')
+        parser.add_argument('--policy',default='config/publish_policy.yaml')
+        args=parser.parse_args(argv[1:])
+        try:
+            result=run_live_publish_test(
+                args.run_id,args.news_id,args.confirm_page_id,queue_root=args.queue_root,
+                history_path=args.history_db,policy_path=args.policy,reporter=_print)
+            _print(result)
+            return 0 if result['ok'] else 1
+        except LivePublishHold as hold:
+            _print({'ok':False,'hold_code':hold.code,'message':str(hold),
+                    'auto_publish':False})
+            return 1
+        except Exception as exc:
+            _print({'ok':False,'state':'FAILED','error':redact(exc),
+                    'auto_publish':False})
+            return 1
     if argv and argv[0]=='run-cycle':
         from .cycle import run_cycle
         parser=_run_id_parser('Run one API-free automation cycle')

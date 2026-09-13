@@ -1,6 +1,7 @@
 """Environment configuration and read-only Page identity preflight."""
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import json
 import os
 from pathlib import Path
 import re
@@ -15,6 +16,7 @@ PROVISIONING_VERIFIED = 'PROVISIONING_VERIFIED'
 PROVISIONING_NOT_VERIFIED = 'PROVISIONING_NOT_VERIFIED'
 PERMISSIONS_RUNTIME_STATUS = 'NOT_DIRECTLY_VERIFIABLE_WITH_PAGE_TOKEN'
 PUBLISH_AUTHORIZATION_STATUS = 'NOT_YET_PROVEN_BY_EXPLICIT_TEST'
+EXPLICITLY_VERIFIED = 'EXPLICITLY_VERIFIED'
 
 
 @dataclass(frozen=True)
@@ -140,10 +142,43 @@ def normalize_capabilities(tasks, groups):
     return tuple(sorted(name for name, aliases in groups.items() if actual & aliases))
 
 
+def publication_authorization_status(
+        path='data/config/meta-publication-authorization.json', *, page_id, graph_api_version):
+    """Load only the non-secret evidence written after both Gate 6 writes succeed."""
+    evidence_path = Path(path)
+    if not evidence_path.exists():
+        return PUBLISH_AUTHORIZATION_STATUS
+    try:
+        value = json.loads(evidence_path.read_text(encoding='utf-8'))
+        if not isinstance(value, dict) or set(value) != {
+                'page_id', 'graph_api_version', 'tested_at', 'operations', 'success'}:
+            raise ValueError('invalid authorization evidence keys')
+        operations = value['operations']
+        if (value['page_id'] != page_id
+                or value['graph_api_version'] != graph_api_version
+                or not _valid_timestamp(value['tested_at'])
+                or value['success'] is not True
+                or not isinstance(operations, list)
+                or len(operations) != 2
+                or any(not isinstance(item, dict) or set(item) != {'name', 'status'}
+                       for item in operations)
+                or {(item['name'], item['status']) for item in operations} != {
+                    ('photo_publish', 'EXPLICITLY_PROVEN'),
+                    ('first_comment', 'EXPLICITLY_PROVEN')}):
+            raise ValueError('invalid authorization evidence')
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+        raise MetaConfigurationError(
+            'INVALID_AUTHORIZATION_EVIDENCE',
+            'Meta publication authorization evidence is invalid') from exc
+    return EXPLICITLY_VERIFIED
+
+
 def _result(*, config=None, ok=False, page_id=None, page_name=None, token_valid=False,
             runtime_identity_verified=False, capabilities=None, permissions=None,
             provisioning_tasks=(), normalized_capabilities=(),
             provisioning_evidence_status=NOT_RUNTIME_VERIFIABLE,
+            publication_authorization=PUBLISH_AUTHORIZATION_STATUS,
+            publication_ready=False,
             error_category=None, message=''):
     return PreflightResult(
         ok=ok,
@@ -160,15 +195,16 @@ def _result(*, config=None, ok=False, page_id=None, page_name=None, token_valid=
         provisioning_tasks=tuple(provisioning_tasks),
         normalized_capabilities=tuple(normalized_capabilities),
         provisioning_evidence_status=provisioning_evidence_status,
-        publication_authorization=PUBLISH_AUTHORIZATION_STATUS,
-        publication_ready=False,
+        publication_authorization=publication_authorization,
+        publication_ready=publication_ready,
         auto_publish=config.auto_publish if config else False,
         error_category=error_category,
         message=message,
     )
 
 
-def run_preflight(config=None, client=None, requirements_path='config/meta.yaml'):
+def run_preflight(config=None, client=None, requirements_path='config/meta.yaml',
+                  authorization_path='data/config/meta-publication-authorization.json'):
     """Verify Page-token identity without treating it as provisioning evidence."""
     try:
         config = config or MetaConfig.from_env()
@@ -218,11 +254,18 @@ def run_preflight(config=None, client=None, requirements_path='config/meta.yaml'
                 provisioning_evidence_status='PAGE_ID_MISMATCH',
                 error_category='PROVISIONING_PAGE_ID_MISMATCH',
                 message='Provisioning evidence belongs to a different Page')
+        authorization = publication_authorization_status(
+            authorization_path, page_id=config.page_id, graph_api_version=config.version)
+        publication_ready = (
+            authorization == EXPLICITLY_VERIFIED
+            and all(status == PROVISIONING_VERIFIED for status in capabilities.values()))
         return _result(
             config=config, ok=True, page_id=actual, page_name=page_name, token_valid=True,
             runtime_identity_verified=True, capabilities=capabilities, permissions=permissions,
             provisioning_tasks=tasks, normalized_capabilities=normalized,
             provisioning_evidence_status=PROVISIONING_VERIFIED,
+            publication_authorization=authorization,
+            publication_ready=publication_ready,
             message='Page identity verified; provisioning capability evidence loaded')
     except MetaError as exc:
         return _result(config=config, error_category=exc.category, message=str(exc))

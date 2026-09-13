@@ -34,6 +34,9 @@
       "type": "string",
       "minLength": 1
     },
+    "image_layout": {
+      "const": "SINGLE"
+    },
     "width": {
       "const": 1080
     },
